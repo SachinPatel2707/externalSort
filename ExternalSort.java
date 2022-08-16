@@ -153,6 +153,16 @@ class InitialFileCreation
 
 public class ExternalSort
 {
+    static List<String> fReadData = new ArrayList<>();    
+    
+    // index file containing the list of links to first files of a run in a pass
+    static Map<Integer, List<AbstractMap.SimpleEntry<Integer, String>>> index = 
+    new HashMap<Integer, List<AbstractMap.SimpleEntry<Integer, String>>>();
+
+    // outer list contains 'mainMemSize' inner lists - representing disk blocks
+    // each inner list contains 'blockSize' records - representing records in a disk block
+    static List<List<String>> simulatedMainMemory = new ArrayList<List<String>>();
+
     public static void main (String[] args) throws IOException
     {
         InitialFileCreation.generateInitialData();
@@ -160,7 +170,6 @@ public class ExternalSort
         Scanner userInput = new Scanner(System.in);
         File file = new File ("original.txt");
         Scanner fRead = new Scanner (file);
-        List<String> fReadData = new ArrayList<>();
 
         while (fRead.hasNextLine())
         {
@@ -174,6 +183,7 @@ public class ExternalSort
 
         String firstFileName = InitialFileCreation.simulateDiskBlocksWithInitialData(fReadData, blockSize, 0);
 
+        fReadData.clear();
         userInput.close();
         fRead.close();
 
@@ -182,31 +192,39 @@ public class ExternalSort
 
     static void externalSort (String firstFileName, int blockSize, int mainMemSize) throws FileNotFoundException, IOException
     {
-        // index file containing the list of links to first files of a run in a pass
-        Map<Integer, List<AbstractMap.SimpleEntry<Integer, String>>> index = new HashMap<Integer, List<AbstractMap.SimpleEntry<Integer, String>>>();
         index.put(0, new ArrayList<AbstractMap.SimpleEntry<Integer, String>>());
+        int pass = 0;
 
-        applySortingToInitialRuns (firstFileName, blockSize, mainMemSize, index);
+        applySortingToInitialRuns (firstFileName, blockSize, mainMemSize, pass);
+
+        // while (index.get(pass).size() >= mainMemSize-1)
+        // {
+
+        // }
+
+        // if no of runs is less than mainMemSize, we need only one pass to merge the runs
+        int runsInFinalPass = index.get(pass).size();
+
+
+
+        pass++;
     }
 
-    static void applySortingToInitialRuns (String firstFileName, int blockSize, int mainMemSize, Map<Integer, 
-    List<AbstractMap.SimpleEntry<Integer, String>>> index) throws FileNotFoundException, IOException
+    static void applySortingToInitialRuns (String firstFileName, int blockSize, int mainMemSize, int pass) throws FileNotFoundException, IOException
     {
         String nextBlockPtr = firstFileName;
         int run = 0;
-        // outer list contains 'mainMemSize' inner lists - representing disk blocks
-        // each inner list contains 'blockSize' records - representing records in a disk block
-        List<List<String>> simulatedMainMemory = new ArrayList<List<String>>();
         
         while (!nextBlockPtr.equals("END_OF_BLOCKS"))
         {
             int tempCounter = mainMemSize;
+            simulatedMainMemory.clear();
             while (tempCounter > 0 && !nextBlockPtr.equals("END_OF_BLOCKS"))
             {
                 File file = new File (nextBlockPtr);
                 Scanner fRead = new Scanner (file);
-                List<String> fReadData = new ArrayList<>();
-                
+                fReadData.clear();
+
                 while (fRead.hasNextLine())
                 {
                     fReadData.add(fRead.nextLine());
@@ -222,16 +240,12 @@ public class ExternalSort
                 fRead.close();
             }
 
-            for (int i = 0; i < mainMemSize; i++)
+            for (int i = 0; i < simulatedMainMemory.size(); i++)
             {
                 simulatedMainMemory.set(i, UtilityFunctionClass.sortDiskBlock(simulatedMainMemory.get(i)));
-                UtilityFunctionClass.copyFromMainToSecondaryMemory(simulatedMainMemory.get(i), blockSize, 0, run++, index);
+                UtilityFunctionClass.copyFromMainToSecondaryMemory(simulatedMainMemory.get(i), blockSize, pass, run++, index);
             }
-
-            simulatedMainMemory.clear();
         }
-
-        // write the sorted records back to the file and move to the next file
     }
 
     // private static void debugger ()
