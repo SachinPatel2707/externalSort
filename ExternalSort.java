@@ -153,6 +153,13 @@ class InitialFileCreation
 
 public class ExternalSort
 {
+    // outer list contains 'mainMemSize' inner lists - representing disk blocks
+    // each inner list contains 'blockSize' records - representing records in a disk block
+    static List<List<String>> simulatedMainMemory = new ArrayList<List<String>>();
+    
+    // index file containing the list of links to first files of a run in a pass
+    static Map<Integer, List<AbstractMap.SimpleEntry<Integer, String>>> index = new HashMap<Integer, List<AbstractMap.SimpleEntry<Integer, String>>>();
+
     public static void main (String[] args) throws IOException
     {
         InitialFileCreation.generateInitialData();
@@ -182,25 +189,28 @@ public class ExternalSort
 
     static void externalSort (String firstFileName, int blockSize, int mainMemSize) throws FileNotFoundException, IOException
     {
-        // index file containing the list of links to first files of a run in a pass
-        Map<Integer, List<AbstractMap.SimpleEntry<Integer, String>>> index = new HashMap<Integer, List<AbstractMap.SimpleEntry<Integer, String>>>();
+        index.clear();
         index.put(0, new ArrayList<AbstractMap.SimpleEntry<Integer, String>>());
 
-        applySortingToInitialRuns (firstFileName, blockSize, mainMemSize, index);
+        applySortingToInitialRuns (firstFileName, blockSize, mainMemSize);
+        int pass = 0;
+
+        while (index.get(pass).size() > mainMemSize-1)
+        {
+
+        }
     }
 
-    static void applySortingToInitialRuns (String firstFileName, int blockSize, int mainMemSize, Map<Integer, 
-    List<AbstractMap.SimpleEntry<Integer, String>>> index) throws FileNotFoundException, IOException
+    static void applySortingToInitialRuns (String firstFileName, int blockSize, int mainMemSize) throws FileNotFoundException, IOException
     {
         String nextBlockPtr = firstFileName;
         int run = 0;
-        // outer list contains 'mainMemSize' inner lists - representing disk blocks
-        // each inner list contains 'blockSize' records - representing records in a disk block
-        List<List<String>> simulatedMainMemory = new ArrayList<List<String>>();
-        
+                
         while (!nextBlockPtr.equals("END_OF_BLOCKS"))
         {
             int tempCounter = mainMemSize;
+            simulatedMainMemory.clear();
+
             while (tempCounter > 0 && !nextBlockPtr.equals("END_OF_BLOCKS"))
             {
                 File file = new File (nextBlockPtr);
@@ -222,16 +232,14 @@ public class ExternalSort
                 fRead.close();
             }
 
-            for (int i = 0; i < mainMemSize; i++)
+            for (int i = 0; i < simulatedMainMemory.size(); i++)
             {
                 simulatedMainMemory.set(i, UtilityFunctionClass.sortDiskBlock(simulatedMainMemory.get(i)));
                 UtilityFunctionClass.copyFromMainToSecondaryMemory(simulatedMainMemory.get(i), blockSize, 0, run++, index);
             }
 
-            simulatedMainMemory.clear();
+            // simulatedMainMemory.clear();
         }
-
-        // write the sorted records back to the file and move to the next file
     }
 
     // private static void debugger ()
