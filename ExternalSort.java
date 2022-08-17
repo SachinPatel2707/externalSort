@@ -216,7 +216,7 @@ public class ExternalSort
                 File file = new File (nextBlockPtr);
                 Scanner fRead = new Scanner (file);
                 List<String> fReadData = new ArrayList<>();
-                
+
                 while (fRead.hasNextLine())
                 {
                     fReadData.add(fRead.nextLine());
