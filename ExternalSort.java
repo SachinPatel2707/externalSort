@@ -3,44 +3,38 @@ import java.util.*;
 
 class UtilityFunctionClass
 {
-    static void copyFromMainToSecondaryMemory (List<String> data, int blockSize, int pass, int run, Map<Integer, 
-    List<AbstractMap.SimpleEntry<Integer, String>>> index) throws IOException
+    static void copyFromMainToSecondaryMemory (List<String> data, int blockSize, int pass, int run, int part, boolean hasMoreParts, 
+    Map<Integer, List<AbstractMap.SimpleEntry<Integer, String>>> index) throws IOException
     {
-        int part = 0;
-        int totalParts = (int) Math.ceil ((double) data.size() / (double) blockSize);
+        if (data.size() == 0)
+            return;
         
-        while (part < totalParts)
+        File temp = new File ("secondaryMemory/pass_" + pass + "_run_" + run + "_data_part_" + part + ".txt");
+        temp.createNewFile();
+        FileWriter fwrite = new FileWriter(temp);
+
+        for (int i = 0; i < blockSize; i++)
         {
-            File temp = new File ("secondaryMemory/pass_" + pass + "_run_" + run + "_data_part_" + part + ".txt");
-            temp.createNewFile();
-            FileWriter fwrite = new FileWriter(temp);
-
-            if ((part+1)*blockSize < data.size())
-            {
-                for (int i = 0; i < blockSize; i++)
-                {
-                    fwrite.write(data.get(part*blockSize + i) + "\n");
-                }
-                fwrite.write("secondaryMemory/pass_" + pass + "_run_" + run + "_data_part_" + (part+1) + ".txt");
-            }
-            else
-            {
-                for (int i = part*blockSize; i < data.size(); i++)
-                {
-                    fwrite.write(data.get(i) + "\n");
-                }
-                fwrite.write("END_OF_RUN");
-            }
-
-            if (part == 0)
-            {
-                AbstractMap.SimpleEntry<Integer, String> indexEntry = new AbstractMap.SimpleEntry<>(run, 
-                "secondaryMemory/pass_" + pass + "_run_" + run + "_data_part_" + part + ".txt");
-                index.get(pass).add(indexEntry);
-            }
-            part++;
-            fwrite.close();
+            fwrite.write(data.get(i) + "\n");
         }
+
+        if (hasMoreParts)
+        {
+            fwrite.write("secondaryMemory/pass_" + pass + "_run_" + run + "_data_part_" + (part+1) + ".txt");        
+        }
+        else
+        {
+            fwrite.write("END_OF_RUN");
+        }
+
+        if (part == 0)
+        {
+            AbstractMap.SimpleEntry<Integer, String> indexEntry = new AbstractMap.SimpleEntry<>(run, 
+            "secondaryMemory/pass_" + pass + "_run_" + run + "_data_part_" + part + ".txt");
+            index.get(pass).add(indexEntry);
+        }
+
+        fwrite.close();
     }
 
     static void cleanDirectory (File dir)
@@ -179,6 +173,8 @@ public class ExternalSort
         System.out.println("Enter the number of disk blocks in main memory (M)");
         int mainMemSize = userInput.nextInt();
 
+        initialiseMainMemory(mainMemSize);
+
         String firstFileName = InitialFileCreation.simulateDiskBlocksWithInitialData(fReadData, blockSize, 0);
 
         userInput.close();
@@ -195,10 +191,38 @@ public class ExternalSort
         applySortingToInitialRuns (firstFileName, blockSize, mainMemSize);
         int pass = 0;
 
-        while (index.get(pass).size() > mainMemSize-1)
-        {
+        // while (index.get(pass).size() > mainMemSize-1)
+        // {
+        //     // int runsNeeded = (int) Math.ceil(index.get(pass).size() / mainMemSize);
+        //     int nextPassRunCount = 0;
 
+        //     for (int run = 0; run < index.get(pass).size(); )
+        //     {
+        //         List<String> nextFilePointers = new ArrayList<>();
+        //         int i = mainMemSize-1;
+        //         while ((i > 0) && (run < index.get(pass).size()))
+        //         {
+        //             nextFilePointers.add(index.get(pass).get(run).getValue());
+        //             i--; run++;
+        //         }
+
+        //         kWayMerge(nextFilePointers, blockSize, mainMemSize, pass, nextPassRunCount);
+        //     }
+
+        //     pass++;
+        // }    
+    }
+
+    static void kWayMerge(List<String> nextFilePointers, int blockSize, int mainMemSize, int pass, int run) throws FileNotFoundException
+    {
+        clearMainMemory(-1);
+
+        for (int i = 0; i < nextFilePointers.size(); i++)
+        {
+            nextFilePointers.set(i, copyToMainMemory(nextFilePointers.get(i), i));
         }
+
+        System.out.println();
     }
 
     static void applySortingToInitialRuns (String firstFileName, int blockSize, int mainMemSize) throws FileNotFoundException, IOException
@@ -208,10 +232,10 @@ public class ExternalSort
                 
         while (!nextBlockPtr.equals("END_OF_BLOCKS"))
         {
-            int tempCounter = mainMemSize;
-            simulatedMainMemory.clear();
+            int tempCounter = 0;
+            clearMainMemory(-1);
 
-            while (tempCounter > 0 && !nextBlockPtr.equals("END_OF_BLOCKS"))
+            while (tempCounter < mainMemSize && !nextBlockPtr.equals("END_OF_BLOCKS"))
             {
                 File file = new File (nextBlockPtr);
                 Scanner fRead = new Scanner (file);
@@ -225,9 +249,7 @@ public class ExternalSort
                 nextBlockPtr = fReadData.get(fReadData.size()-1);
                 fReadData.remove(fReadData.size()-1);
 
-                simulatedMainMemory.add(fReadData);
-
-                tempCounter--;
+                simulatedMainMemory.set(tempCounter++, fReadData);
 
                 fRead.close();
             }
@@ -235,15 +257,49 @@ public class ExternalSort
             for (int i = 0; i < simulatedMainMemory.size(); i++)
             {
                 simulatedMainMemory.set(i, UtilityFunctionClass.sortDiskBlock(simulatedMainMemory.get(i)));
-                UtilityFunctionClass.copyFromMainToSecondaryMemory(simulatedMainMemory.get(i), blockSize, 0, run++, index);
+                UtilityFunctionClass.copyFromMainToSecondaryMemory(simulatedMainMemory.get(i), blockSize, 0, run++, 0, false, index);
             }
-
-            // simulatedMainMemory.clear();
         }
     }
 
-    // private static void debugger ()
-    // {
-        
-    // }
+    static String copyToMainMemory (String fileName, int mainMemBlock) throws FileNotFoundException
+    {
+        File file = new File (fileName);
+        Scanner fRead = new Scanner (file);
+        List<String> fReadData = new ArrayList<>();
+
+        while (fRead.hasNextLine())
+        {
+            fReadData.add(fRead.nextLine());
+        }
+
+        String temp = fReadData.get(fReadData.size()-1);
+        fReadData.remove(fReadData.size()-1);
+
+        simulatedMainMemory.set(mainMemBlock, fReadData);
+        fRead.close();
+        return temp;
+    }
+
+    static void clearMainMemory (int block)
+    {
+        if (block == -1)
+        {
+            for (int i = 0; i < simulatedMainMemory.size(); i++)
+                simulatedMainMemory.get(i).clear();
+        }
+        else
+        {
+            simulatedMainMemory.get(block).clear();
+        }
+    }
+
+    static void initialiseMainMemory (int mainMemSize)
+    {
+        for (int i = 0; i < mainMemSize; i++)
+        {
+            List<String> temp = new ArrayList<>();
+            simulatedMainMemory.add(temp);
+        }
+    }
 }
