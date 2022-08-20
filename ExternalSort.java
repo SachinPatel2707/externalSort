@@ -31,6 +31,10 @@ class UtilityFunctionClass
         {
             AbstractMap.SimpleEntry<Integer, String> indexEntry = new AbstractMap.SimpleEntry<>(run, 
             "secondaryMemory/pass_" + pass + "_run_" + run + "_data_part_" + part + ".txt");
+
+            if (!index.keySet().contains(pass))
+                index.put(pass, new ArrayList<AbstractMap.SimpleEntry<Integer, String>>());
+            
             index.get(pass).add(indexEntry);
         }
 
@@ -85,7 +89,7 @@ class InitialFileCreation
         {
             Random random = new Random();
             FileWriter fwrite = new FileWriter(original);
-            for (int index = 1; index <= 50000; index++)
+            for (int index = 1; index <= 100; index++)
             {
                 int saleAmount = random.nextInt(60001);
                 String customerName = generateRandomString();
@@ -145,6 +149,85 @@ class InitialFileCreation
     }
 }
 
+class MinHeapNode
+{
+    String record;
+    int diskBlock;
+    int nextRecordIndex;
+    int transactionValue;
+
+    MinHeapNode (String record, int diskBlock, int nextRecordIndex)
+    {
+        this.record = record;
+        this.diskBlock = diskBlock;
+        this.nextRecordIndex = nextRecordIndex;
+        if (record.equals(""))
+        {
+            this.transactionValue = Integer.MAX_VALUE;
+        }
+        else
+        {
+            String[] temp = record.split(" ");
+            this.transactionValue = Integer.parseInt(temp[1]);
+        }
+    }
+}
+
+class MinHeap
+{
+    MinHeapNode[] heapArr;
+    int heapSize;
+
+    MinHeap (MinHeapNode[] arr, int size)
+    {
+        this.heapArr = arr;
+        this.heapSize = size;
+
+        int i = (heapSize-1) / 2;
+        while(i >= 0)
+        {
+            minHeapify(i--);
+        }
+    }
+
+    void minHeapify (int index)
+    {
+        int leftChildIndex = (2 * index) + 1;
+        int rightChildIndex = (2 * index) + 2;
+        int minimum = index;
+
+        if (leftChildIndex < heapSize && heapArr[leftChildIndex].transactionValue < heapArr[index].transactionValue)
+            minimum = leftChildIndex;
+
+        if (rightChildIndex < heapSize && heapArr[rightChildIndex].transactionValue < heapArr[minimum].transactionValue)
+            minimum = rightChildIndex;
+        
+        if (minimum != index)
+        {
+            swapNodes(index, minimum);
+            minHeapify(minimum);
+        }
+    }
+
+    MinHeapNode extractMin ()
+    {
+        return this.heapArr[0];
+    }
+
+    void insertAndHeapify (MinHeapNode newNode)
+    {
+        this.heapArr[0] = newNode;
+        minHeapify(0);
+    }
+
+    void swapNodes (int i, int j)
+    {
+        MinHeapNode temp = heapArr[i];
+        heapArr[i] = heapArr[j];
+        heapArr[j] = temp;
+    }
+}
+
 public class ExternalSort
 {
     // outer list contains 'mainMemSize' inner lists - representing disk blocks
@@ -191,29 +274,45 @@ public class ExternalSort
         applySortingToInitialRuns (firstFileName, blockSize, mainMemSize);
         int pass = 0;
 
-        // while (index.get(pass).size() > mainMemSize-1)
-        // {
-        //     // int runsNeeded = (int) Math.ceil(index.get(pass).size() / mainMemSize);
-        //     int nextPassRunCount = 0;
+        while (index.get(pass).size() > mainMemSize-1)
+        {
+            // int runsNeeded = (int) Math.ceil(index.get(pass).size() / mainMemSize);
+            int nextPassRunCount = 0;
 
-        //     for (int run = 0; run < index.get(pass).size(); )
-        //     {
-        //         List<String> nextFilePointers = new ArrayList<>();
-        //         int i = mainMemSize-1;
-        //         while ((i > 0) && (run < index.get(pass).size()))
-        //         {
-        //             nextFilePointers.add(index.get(pass).get(run).getValue());
-        //             i--; run++;
-        //         }
+            for (int run = 0; run < index.get(pass).size(); )
+            {
+                List<String> nextFilePointers = new ArrayList<>();
+                int i = mainMemSize-1;
+                while ((i > 0) && (run < index.get(pass).size()))
+                {
+                    nextFilePointers.add(index.get(pass).get(run).getValue());
+                    i--; run++;
+                }
 
-        //         kWayMerge(nextFilePointers, blockSize, mainMemSize, pass, nextPassRunCount);
-        //     }
+                kWayMerge(nextFilePointers, blockSize, mainMemSize, pass, nextPassRunCount++);
+            }
 
-        //     pass++;
-        // }    
+            pass++;
+        }
+        
+        for (int run = 0; run < index.get(pass).size(); )
+        {
+            List<String> nextFilePointers = new ArrayList<>();
+            int i = mainMemSize-1;
+            while ((i > 0) && (run < index.get(pass).size()))
+            {
+                nextFilePointers.add(index.get(pass).get(run).getValue());
+                i--; run++;
+            }
+
+            kWayMerge(nextFilePointers, blockSize, mainMemSize, pass, 0);
+        }
+
+        combineFinalOutput(index.get(pass+1).get(0).getValue(), blockSize);
     }
 
-    static void kWayMerge(List<String> nextFilePointers, int blockSize, int mainMemSize, int pass, int run) throws FileNotFoundException
+    static void kWayMerge(List<String> nextFilePointers, int blockSize, int mainMemSize, int pass, int run) throws FileNotFoundException, 
+    IOException
     {
         clearMainMemory(-1);
 
@@ -222,7 +321,101 @@ public class ExternalSort
             nextFilePointers.set(i, copyToMainMemory(nextFilePointers.get(i), i));
         }
 
+        int heapSize = Math.min(nextFilePointers.size(), mainMemSize-1);
+        MinHeapNode[] heapArr = new MinHeapNode[heapSize];
+
+        for (int i = 0; i < heapSize; i++)
+        {
+            MinHeapNode newNode = new MinHeapNode(simulatedMainMemory.get(i).get(0), i, 1);
+            heapArr[i] = newNode;
+        }
+
+        MinHeap minHeap = new MinHeap(heapArr, heapSize);
+        int part = 0;
+        int outputBlock = mainMemSize-1;
+
+        while (minHeap.heapSize > 0)
+        {
+            MinHeapNode minNode = minHeap.extractMin();
+            MinHeapNode newNode;
+            simulatedMainMemory.get(outputBlock).add(minNode.record);            
+            
+            int response = isMoreDataInBlock(minNode.diskBlock, minNode.nextRecordIndex, blockSize, nextFilePointers);
+            if(response == 1)
+            {
+                // make new Node with the next record in the same block, replace root with it, and minheapify
+                newNode = new MinHeapNode(simulatedMainMemory.get(minNode.diskBlock).get(minNode.nextRecordIndex), 
+                minNode.diskBlock, minNode.nextRecordIndex+1); 
+                minHeap.insertAndHeapify(newNode);
+            }
+            else if (response == -2)
+            {
+                // make new Node with empty data and infinite as transaction value and replace root with it, minheapify
+                newNode = new MinHeapNode("", -1, -1);
+                minHeap.insertAndHeapify(newNode);
+                minHeap.heapSize -= 1;
+            }
+            else
+            {
+                // make new node with 0th record of the same block, replace root with it, minheapify
+                newNode = new MinHeapNode(simulatedMainMemory.get(minNode.diskBlock).get(0), minNode.diskBlock, 1);
+                minHeap.insertAndHeapify(newNode);
+            }
+
+            part = checkOutputBlockFull(outputBlock, blockSize, pass, run, part, (minHeap.heapSize > 0));
+        }
+
         System.out.println();
+    }
+
+    static int isMoreDataInBlock (int diskBlock, int nextRecordIndex, int blockSize, List<String> nextFilePointers)
+    throws FileNotFoundException
+    {
+        if (nextRecordIndex < simulatedMainMemory.get(diskBlock).size())
+            return 1;
+        
+        if (nextFilePointers.get(diskBlock).equals("END_OF_RUN"))
+            return -2;
+
+        nextFilePointers.set(diskBlock, copyToMainMemory(nextFilePointers.get(diskBlock), diskBlock));
+        return 0;
+    }
+
+    static int checkOutputBlockFull (int outputBlock, int blockSize, int pass, int run, int part, boolean hasMoreParts)
+    throws IOException
+    {
+        if (simulatedMainMemory.get(outputBlock).size() < blockSize)
+            return part;
+        
+        UtilityFunctionClass.copyFromMainToSecondaryMemory(simulatedMainMemory.get(outputBlock), blockSize, pass+1, run, part, hasMoreParts, index);
+
+        clearMainMemory(outputBlock);
+
+        return part+1;
+    }
+
+    static boolean hasMoreData (List<String> nextFilePointers)
+    {
+        if (hasMoreBlocks(nextFilePointers))
+            return true;
+        
+        for (int i = 0; i < simulatedMainMemory.size()-1; i++)
+        {
+            if (simulatedMainMemory.get(i).size() != 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    static boolean hasMoreBlocks(List<String> nextFilePointers)
+    {
+        for (String str : nextFilePointers)
+        {
+            if (!str.equals("END_OF_RUN"))
+                return true;
+        }
+        return false;
     }
 
     static void applySortingToInitialRuns (String firstFileName, int blockSize, int mainMemSize) throws FileNotFoundException, IOException
@@ -300,6 +493,40 @@ public class ExternalSort
         {
             List<String> temp = new ArrayList<>();
             simulatedMainMemory.add(temp);
+        }
+    }
+
+    static void combineFinalOutput (String filePtr, int blockSize) throws IOException
+    {
+        File output = new File ("output.txt");
+        output.createNewFile();
+        if (output.exists())
+        {
+            FileWriter fwrite = new FileWriter(output);
+
+            while (!filePtr.equals("END_OF_RUN"))
+            {
+                File file = new File (filePtr);
+                Scanner fRead = new Scanner (file);
+                List<String> fReadData = new ArrayList<>();
+
+                while (fRead.hasNextLine())
+                {
+                    fReadData.add(fRead.nextLine());
+                }
+
+                filePtr = fReadData.get(fReadData.size()-1);
+                fReadData.remove(fReadData.size()-1);
+
+                for (String str : fReadData)
+                {
+                    fwrite.append(str + "\n");
+                }
+
+                fRead.close();
+            }
+
+            fwrite.close();
         }
     }
 }
