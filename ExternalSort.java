@@ -508,20 +508,13 @@ public class ExternalSort
             {
                 File file = new File (filePtr);
                 Scanner fRead = new Scanner (file);
-                List<String> fReadData = new ArrayList<>();
 
-                while (fRead.hasNextLine())
+                for (int i = 0; i < blockSize; i++)
                 {
-                    fReadData.add(fRead.nextLine());
+                    fwrite.append(fRead.nextLine() + "\n");
                 }
 
-                filePtr = fReadData.get(fReadData.size()-1);
-                fReadData.remove(fReadData.size()-1);
-
-                for (String str : fReadData)
-                {
-                    fwrite.append(str + "\n");
-                }
+                filePtr = fRead.nextLine();
 
                 fRead.close();
             }
