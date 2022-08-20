@@ -89,7 +89,7 @@ class InitialFileCreation
         {
             Random random = new Random();
             FileWriter fwrite = new FileWriter(original);
-            for (int index = 1; index <= 100; index++)
+            for (int index = 1; index <= 50000; index++)
             {
                 int saleAmount = random.nextInt(60001);
                 String customerName = generateRandomString();
@@ -121,7 +121,7 @@ class InitialFileCreation
         int totalRuns = (int) Math.ceil((double) data.size() / (double) blockSize);
         while (curRun < totalRuns)
         {
-            File temp = new File ("secondaryMemory/pass_" + pass + "_run_" + curRun + "_unsortedData.txt");
+            File temp = new File ("secondaryMemory/initial_unsorted_data_pass_" + pass + "_run_" + curRun + ".txt");
             temp.createNewFile();
             FileWriter fwrite = new FileWriter(temp);
 
@@ -131,7 +131,7 @@ class InitialFileCreation
                 {
                     fwrite.write(data.get(curRun*blockSize + i) + "\n");
                 }
-                fwrite.write("secondaryMemory/pass_" + pass + "_run_" + (curRun+1) + "_unsortedData.txt");
+                fwrite.write("secondaryMemory/initial_unsorted_data_pass_" + pass + "_run_" + (curRun+1) + ".txt");
             }
             else
             {
@@ -145,7 +145,7 @@ class InitialFileCreation
             fwrite.close();
         }
 
-        return ("secondaryMemory/pass_" + pass + "_run_" + 0 + "_unsortedData.txt");
+        return ("secondaryMemory/initial_unsorted_data_pass_" + pass + "_run_" + 0 + ".txt");
     }
 }
 
@@ -161,15 +161,9 @@ class MinHeapNode
         this.record = record;
         this.diskBlock = diskBlock;
         this.nextRecordIndex = nextRecordIndex;
-        if (record.equals(""))
-        {
-            this.transactionValue = Integer.MAX_VALUE;
-        }
-        else
-        {
-            String[] temp = record.split(" ");
-            this.transactionValue = Integer.parseInt(temp[1]);
-        }
+        
+        String[] temp = record.split(" ");
+        this.transactionValue = Integer.parseInt(temp[1]);
     }
 }
 
@@ -350,9 +344,8 @@ public class ExternalSort
             }
             else if (response == -2)
             {
-                // make new Node with empty data and infinite as transaction value and replace root with it, minheapify
-                newNode = new MinHeapNode("", -1, -1);
-                minHeap.insertAndHeapify(newNode);
+                minHeap.heapArr[0] = minHeap.heapArr[minHeap.heapSize-1];
+                minHeap.minHeapify(0);
                 minHeap.heapSize -= 1;
             }
             else
