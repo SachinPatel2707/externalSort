@@ -13,3 +13,6 @@ Each disk block is loaded into the main memory and its records are sorted and wr
 Few of these sorted disk blocks ( number depends on main memory size ) are loaded into main memory and combined to produce bigger output block.
 
 This merging continues until we are left with a single run of disk blocks in secondary memory containing all the sorted records.
+
+
+Github Repo Link : https://github.com/SachinPatel2707/externalSort

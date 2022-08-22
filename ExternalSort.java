@@ -91,7 +91,7 @@ class InitialFileCreation
         {
             Random random = new Random();
             FileWriter fwrite = new FileWriter(original);
-            for (int index = 1; index <= 500; index++)
+            for (int index = 1; index <= 50000; index++)
             {
                 int saleAmount = random.nextInt(60001);
                 String customerName = generateRandomString();
