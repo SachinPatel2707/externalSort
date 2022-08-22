@@ -76,9 +76,11 @@ class UtilityFunctionClass
     }
 }
 
-// used only once to create a single txt file containing 50000 random records.
 class InitialFileCreation
 {
+    /*
+     * generates 50,000 random records and stores them in a single text file
+     */
     public static void generateInitialData () throws IOException
     {
         UtilityFunctionClass.cleanDirectory(new File ("secondaryMemory"));
@@ -89,7 +91,7 @@ class InitialFileCreation
         {
             Random random = new Random();
             FileWriter fwrite = new FileWriter(original);
-            for (int index = 1; index <= 50000; index++)
+            for (int index = 1; index <= 500; index++)
             {
                 int saleAmount = random.nextInt(60001);
                 String customerName = generateRandomString();
@@ -115,6 +117,16 @@ class InitialFileCreation
         return (buffer.toString());
     }
 
+    /*
+     * breaks down the single text file of records into multiple text files of user given size
+     * and links them together using pointers to simulate the storage of large files in secondary      memory
+     * 
+     * @params { data } all the records from the single original text file
+     * @params { blockSize } number of records that can be stored in one memory block
+     * @params { pass }
+     * 
+     * @returns { String } path to the first disk block containing the initial unsorted data
+     */
     static String simulateDiskBlocksWithInitialData (List<String> data, int blockSize, int pass) throws IOException
     {
         int curRun = 0;
@@ -268,9 +280,9 @@ public class ExternalSort
         applySortingToInitialRuns (firstFileName, blockSize, mainMemSize);
         int pass = 0;
 
+        // case 2 : number of runs in the pass > number of main memory blocks - 1
         while (index.get(pass).size() > mainMemSize-1)
         {
-            // int runsNeeded = (int) Math.ceil(index.get(pass).size() / mainMemSize);
             int nextPassRunCount = 0;
 
             for (int run = 0; run < index.get(pass).size(); )
@@ -289,6 +301,7 @@ public class ExternalSort
             pass++;
         }
         
+        // case 1 : number of runs in the pass <= number of main memory blocks - 1
         for (int run = 0; run < index.get(pass).size(); )
         {
             List<String> nextFilePointers = new ArrayList<>();
@@ -361,6 +374,20 @@ public class ExternalSort
         System.out.println();
     }
 
+    /*
+     * finds whether the block in main memory has more records to fetch or not
+     * 
+     * @params { diskBlock } index of main memory block that needs to be checked
+     * @params { nextRecordIndex } index of next record that needs to be added to minHeap
+     * @params { blockSize } 
+     * @params { nextFilePointers } list containing links to next disk block that should be fetched into main memory if all the records of
+     * current disk block have been processed
+     * 
+     * @returns { integer } 1 : if there are more records to be fetched in current disk block
+     * @returns { integer } -2 : if the current disk block is exhausted and there are no more disk blocks to be loaded into main memory from
+     * that run
+     * @returns { integer } 0 : if the current disk block is exhausted and the next disk block has been fetched in the main memory
+     */
     static int isMoreDataInBlock (int diskBlock, int nextRecordIndex, int blockSize, List<String> nextFilePointers)
     throws FileNotFoundException
     {
@@ -374,6 +401,10 @@ public class ExternalSort
         return 0;
     }
 
+    /*
+     * checks whether the outputBlock in main memory is full
+     * if it is full, then the content is copied from main memory to secondary memory and the disk block is emptied
+     */
     static int checkOutputBlockFull (int outputBlock, int blockSize, int pass, int run, int part, boolean hasMoreParts)
     throws IOException
     {
@@ -387,30 +418,10 @@ public class ExternalSort
         return part+1;
     }
 
-    static boolean hasMoreData (List<String> nextFilePointers)
-    {
-        if (hasMoreBlocks(nextFilePointers))
-            return true;
-        
-        for (int i = 0; i < simulatedMainMemory.size()-1; i++)
-        {
-            if (simulatedMainMemory.get(i).size() != 0)
-                return true;
-        }
-
-        return false;
-    }
-
-    static boolean hasMoreBlocks(List<String> nextFilePointers)
-    {
-        for (String str : nextFilePointers)
-        {
-            if (!str.equals("END_OF_RUN"))
-                return true;
-        }
-        return false;
-    }
-
+    /*
+     * copies 'mainMemSize' disk blocks from secondary memory to main memory, sorts each main memory block and writes the sorted
+     * blocks back to secondary memory
+     */
     static void applySortingToInitialRuns (String firstFileName, int blockSize, int mainMemSize) throws FileNotFoundException, IOException
     {
         String nextBlockPtr = firstFileName;
@@ -448,6 +459,14 @@ public class ExternalSort
         }
     }
 
+    /*
+     * copies a disk block from secondary memory to main memory
+     * 
+     * @params { fileName } path to the disk block in secondary memory that needs to be copied
+     * @params { mainMemBlock } index of the main memory block in which the data needs to be copied
+     * 
+     * @returns { String } returns the link to next disk block in secondary memory
+     */
     static String copyToMainMemory (String fileName, int mainMemBlock) throws FileNotFoundException
     {
         File file = new File (fileName);
@@ -467,6 +486,12 @@ public class ExternalSort
         return temp;
     }
 
+    /*
+     * clear the data in main memory
+     * 
+     * @params { block } -1 : clears all the disk blocks in main memory
+     * @params { block } integer >= 0 : only clears the main memory disk block which is at index 'block'
+     */
     static void clearMainMemory (int block)
     {
         if (block == -1)
@@ -489,6 +514,9 @@ public class ExternalSort
         }
     }
 
+    /*
+     * combines the parts of final pass containing sorted records into a single text file
+     */
     static void combineFinalOutput (String filePtr, int blockSize) throws IOException
     {
         File output = new File ("output.txt");
