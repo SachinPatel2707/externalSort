@@ -15,4 +15,6 @@ Few of these sorted disk blocks ( number depends on main memory size ) are loade
 This merging continues until we are left with a single run of disk blocks in secondary memory containing all the sorted records.
 
 
+Note: The record structure is { TransactionID, Transaction value, name, category }, so, the output is sorted on the basis of the second column. 
+
 Github Repo Link : https://github.com/SachinPatel2707/externalSort

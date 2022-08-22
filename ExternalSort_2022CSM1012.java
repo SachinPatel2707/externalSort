@@ -55,21 +55,32 @@ class UtilityFunctionClass
     static List<String> sortDiskBlock (List<String> data)
     {
         List<String> sortedData = new ArrayList<>();
-        Map<Integer, String> mappedData = new HashMap<>();
+        Map<Integer, List<String>> mappedData = new HashMap<>();
         List<Integer> transactionData = new ArrayList<>();
 
         for (String str : data)
         {
             String[] temp = str.split(" ");
-            transactionData.add(Integer.parseInt(temp[1]));
-            mappedData.put(Integer.parseInt(temp[1]), str);
+            int tempInt = Integer.parseInt(temp[1]);
+            transactionData.add(tempInt);
+            if (mappedData.containsKey(tempInt))
+            {
+                mappedData.get(tempInt).add(str);
+            }
+            else
+            {
+                List<String> strArr = new ArrayList<>();
+                strArr.add(str);
+                mappedData.put(tempInt, strArr);
+            }
         }
 
         Collections.sort(transactionData);
 
         for (int x : transactionData)
         {
-            sortedData.add(mappedData.get(x));
+            sortedData.add(mappedData.get(x).get(0));
+            mappedData.get(x).remove(0);
         }
 
         return sortedData;
@@ -234,7 +245,7 @@ class MinHeap
     }
 }
 
-public class ExternalSort
+public class ExternalSort_2022CSM1012
 {
     // outer list contains 'mainMemSize' inner lists - representing disk blocks
     // each inner list contains 'blockSize' records - representing records in a disk block
