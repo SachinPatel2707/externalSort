@@ -102,7 +102,7 @@ class InitialFileCreation
         {
             Random random = new Random();
             FileWriter fwrite = new FileWriter(original);
-            for (int index = 1; index <= 50000; index++)
+            for (int index = 1; index <= 500; index++)
             {
                 int saleAmount = random.nextInt(60001);
                 String customerName = generateRandomString();
@@ -273,6 +273,13 @@ public class ExternalSort_2022CSM1012
         System.out.println("Enter the number of disk blocks in main memory (M)");
         int mainMemSize = userInput.nextInt();
 
+        if (mainMemSize < 3)
+        {
+            System.out.println("Main memory insufficient.");
+            userInput.close();
+            fRead.close();
+            return;
+        }
         initialiseMainMemory(mainMemSize);
 
         String firstFileName = InitialFileCreation.simulateDiskBlocksWithInitialData(fReadData, blockSize, 0);
