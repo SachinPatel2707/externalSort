@@ -13,7 +13,7 @@ class UtilityFunctionClass
         temp.createNewFile();
         FileWriter fwrite = new FileWriter(temp);
 
-        for (int i = 0; i < blockSize; i++)
+        for (int i = 0; i < Math.min(blockSize, data.size()); i++)
         {
             fwrite.write(data.get(i) + "\n");
         }
@@ -102,7 +102,7 @@ class InitialFileCreation
         {
             Random random = new Random();
             FileWriter fwrite = new FileWriter(original);
-            for (int index = 1; index <= 500; index++)
+            for (int index = 1; index <= 20; index++)
             {
                 int saleAmount = random.nextInt(60001);
                 String customerName = generateRandomString();
@@ -389,6 +389,10 @@ public class ExternalSort_2022CSM1012
             part = checkOutputBlockFull(outputBlock, blockSize, pass, run, part, (minHeap.heapSize > 0));
         }
 
+        if (simulatedMainMemory.get(outputBlock).size() > 0 && simulatedMainMemory.get(outputBlock).size() < blockSize)
+        {
+            UtilityFunctionClass.copyFromMainToSecondaryMemory(simulatedMainMemory.get(outputBlock), blockSize, pass+1, run, part, false, index);
+        }
         System.out.println();
     }
 
@@ -547,13 +551,20 @@ public class ExternalSort_2022CSM1012
             {
                 File file = new File (filePtr);
                 Scanner fRead = new Scanner (file);
+                List<String> temp = new ArrayList<>();
 
-                for (int i = 0; i < blockSize; i++)
+                while (fRead.hasNextLine())
                 {
-                    fwrite.append(fRead.nextLine() + "\n");
+                    temp.add(fRead.nextLine());
                 }
+                
+                filePtr = temp.get(temp.size()-1);
+                temp.remove(temp.size()-1);
 
-                filePtr = fRead.nextLine();
+                for (String x : temp)
+                {
+                    fwrite.append(x + "\n");
+                }
 
                 fRead.close();
             }
